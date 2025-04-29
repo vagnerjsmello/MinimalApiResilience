@@ -61,7 +61,7 @@ http://localhost:7284/swagger
 
 - `Program.cs` - Configures the application and endpoints.
 - `Middlewares/ExceptionHandlingMiddleware.cs` - Handles exceptions globally.
-- `ServiceCollectionExtensions/` - Sets up services like HttpClient and Serilog.
+- `ServiceCollectionExtensions/` - Sets up services like HttpClient, Polly, Circuit Breaker and Serilog.
 - `Settings/ExternalApiSettings.cs` - Holds external API settings.
 - `appsettings.json` - Application configuration.
 

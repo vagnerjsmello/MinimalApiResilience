@@ -2,6 +2,7 @@ using Polly;
 using Polly.Extensions.Http;
 using Polly.Timeout;
 using Serilog;
+using System.Net.Http;
 
 namespace MinimalApiResilience.ServiceCollectionExtensions
 {
@@ -14,19 +15,22 @@ namespace MinimalApiResilience.ServiceCollectionExtensions
         {
             return HttpPolicyExtensions
                 .HandleTransientHttpError()
-                .WaitAndRetryAsync(retryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                .WaitAndRetryAsync(retryCount, retryAttempt 
+                    => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
                     onRetry: (outcome, timespan, retryAttempt, context) =>
                     {
-                        Log.Warning($"Retry attempt {retryAttempt} failed. Waiting {timespan} before next attempt.");
+                        Log.Warning($"Retry attempt {retryAttempt} failed. " +
+                            $"Waiting {timespan} before next attempt.");
                     });
         }
 
         public static IAsyncPolicy<HttpResponseMessage> GetTimeoutPolicy(int timeoutSeconds)
         {
-            return Policy.TimeoutAsync<HttpResponseMessage>(timeoutSeconds);
+            return Policy.TimeoutAsync<HttpResponseMessage>(TimeSpan.FromSeconds(timeoutSeconds));
         }
 
-        public static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy(int failuresAllowedBeforeBreaking, int durationOfBreakSeconds)
+        public static IAsyncPolicy<HttpResponseMessage> 
+            GetCircuitBreakerPolicy(int failuresAllowedBeforeBreaking, int durationOfBreakSeconds)
         {
             return HttpPolicyExtensions
                 .HandleTransientHttpError()
@@ -35,7 +39,8 @@ namespace MinimalApiResilience.ServiceCollectionExtensions
                     durationOfBreak: TimeSpan.FromSeconds(durationOfBreakSeconds),
                     onBreak: (outcome, timespan) =>
                     {
-                        Log.Warning($"Circuit opened for {timespan.TotalSeconds} seconds due to: {outcome.Exception?.Message ?? outcome.Result.ReasonPhrase}");
+                        Log.Warning($"Circuit opened for {timespan.TotalSeconds} " +
+                            $"seconds due to: {outcome.Exception?.Message ?? outcome.Result.ReasonPhrase}");
                     },
                     onReset: () => Log.Information("Circuit closed. Operations resumed."),
                     onHalfOpen: () => Log.Information("Circuit half-open. Testing the system.")

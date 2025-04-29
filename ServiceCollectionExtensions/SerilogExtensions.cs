@@ -12,8 +12,8 @@ namespace MinimalApiResilience.ServiceCollectionExtensions
         {
             hostBuilder.UseSerilog((context, services, configuration) =>
             {
-                configuration
-                    .ReadFrom.Configuration(context.Configuration) // Important: Read from appsettings.json
+                configuration  // Important: Read from appsettings.json
+                    .ReadFrom.Configuration(context.Configuration)
                     .Enrich.FromLogContext();
             });
         }

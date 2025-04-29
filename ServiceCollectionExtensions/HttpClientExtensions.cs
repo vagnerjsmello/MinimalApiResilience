@@ -1,9 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using MinimalApiResilience.Settings;
+using Polly;
 
 namespace MinimalApiResilience.ServiceCollectionExtensions
-{
+{    
     /// <summary>
     /// Extension methods for configuring HttpClient with resilience policies.
     /// </summary>
@@ -16,27 +17,30 @@ namespace MinimalApiResilience.ServiceCollectionExtensions
 
             services.AddHttpClient("ExternalApi", (serviceProvider, client) =>
             {
-                var settings = serviceProvider.GetRequiredService<IOptions<ExternalApiSettings>>().Value;
+                var settings = GetSettings(serviceProvider);
                 client.BaseAddress = new Uri(settings.BaseUrl);
             })
             .AddPolicyHandler((serviceProvider, request) =>
             {
-                var settings = serviceProvider.GetRequiredService<IOptions<ExternalApiSettings>>().Value;
-                return ResiliencePoliciesExtensions.GetRetryPolicy(settings.RetryCount);
-            })
-            .AddPolicyHandler((serviceProvider, request) =>
-            {
-                var settings = serviceProvider.GetRequiredService<IOptions<ExternalApiSettings>>().Value;
-                return ResiliencePoliciesExtensions.GetTimeoutPolicy(settings.TimeoutSeconds);
-            })
-            .AddPolicyHandler((serviceProvider, request) =>
-            {
-                var settings = serviceProvider.GetRequiredService<IOptions<ExternalApiSettings>>().Value;
-                return ResiliencePoliciesExtensions.GetCircuitBreakerPolicy(
+                var settings = GetSettings(serviceProvider);
+
+                var retryPolicy = ResiliencePoliciesExtensions.GetRetryPolicy(settings.RetryCount);
+                var timeoutPolicy = ResiliencePoliciesExtensions.GetTimeoutPolicy(settings.TimeoutSeconds);
+                var circuitBreakerPolicy = ResiliencePoliciesExtensions.GetCircuitBreakerPolicy(
                     settings.CircuitBreakerFailureThreshold,
                     settings.CircuitBreakerDurationSeconds
                 );
+
+                // Compose policies in a single execution chain
+                return Policy.WrapAsync(retryPolicy, timeoutPolicy, circuitBreakerPolicy);
             });
+
+            static ExternalApiSettings GetSettings(IServiceProvider serviceProvider)
+            {
+                return serviceProvider.GetRequiredService<IOptions<ExternalApiSettings>>().Value;
+            }
         }
     }
 }
+
+
